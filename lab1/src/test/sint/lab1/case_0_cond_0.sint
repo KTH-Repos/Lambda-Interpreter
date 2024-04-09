@@ -1,7 +1,0 @@
-
-// we test: branch and iszero
-
-if iszero 0 then
-  11
-else
-  12
