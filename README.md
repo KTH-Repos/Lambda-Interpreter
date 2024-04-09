@@ -1,9 +1,3 @@
----
-runme:
-  id: 01HV1NZG4R3TV2W17NSHV60V0B
-  version: v3
----
-
 # DD2481---Principles-of-Programming-Languages
 
 This repo contains lab work for DD2481.
