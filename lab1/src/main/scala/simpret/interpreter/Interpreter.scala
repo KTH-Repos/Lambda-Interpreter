@@ -84,6 +84,8 @@ object Interpreter {
     case PlusExp(e1, e2) =>
       PlusExp(substitute(e1, id, value), substitute(e2, id, value))
 
+    case LamExp(varId, body) if varId == id =>
+      LamExp(varId, body)  // Same id means a new scope, do not substitute in the body
 
     case LamExp(varId, body) =>
       if (freeVars(value).contains(varId)) {
