@@ -38,4 +38,18 @@ class MainTestLab1 extends MainTestInterpreter {
   test("TestCaseLab1 2 XYZ") {
     // here you add the corresponding sub testcases
   }
+
+  test("bonus test") {
+
+  val program = "(\\y. y) (\\y. y) z"
+
+  val sol = "(\\y. y) z"
+
+  val programAST = simpret.lexer.Lexer(program).flatMap(simpret.parser.Parser(_)).toOption.get
+
+  val solAST = simpret.lexer.Lexer(sol).flatMap(simpret.parser.Parser(_)).toOption.get
+
+  assert(simpret.interpreter.Interpreter.eval(programAST) == solAST)
+
+}
 }

@@ -66,13 +66,13 @@ object Interpreter {
   }
 
   def substitute(expr: AST, id: String, value: AST): AST = expr match {
-    case Variable(varId) if varId == id =>
+    case Variable(varId) if varId == id =>    //repalace value instead of variable
       value  
 
-    case Variable(_) =>
+    case Variable(_) =>     //no substitution of value instead of variable
       expr  
 
-    case BoolLit(_) | IntLit(_) =>
+    case BoolLit(_) | IntLit(_) =>       //no substitution of value instead of variable
       expr 
 
     case CondExp(cond, e1, e2) =>
@@ -124,7 +124,7 @@ object Interpreter {
     case PlusExp(e1, e2) => 
       freeVars(e1) ++ freeVars(e2)
     case LamExp(id, body) => 
-      freeVars(body) - id
+      freeVars(body)
     case AppExp(e1, e2) => 
       freeVars(e1) ++ freeVars(e2)
   }
