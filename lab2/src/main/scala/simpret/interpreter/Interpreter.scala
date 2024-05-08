@@ -70,10 +70,8 @@ object Interpreter {
      This function should return the stepped AST if a reduction step can be taken.
      If the provided AST cannot be reduced further, this function should
      return None.*/
-  def step(tree: AST): Option[AST] = {
+  def step(tree: AST): Option[AST] = tree match {
     
-      case CondExp(c, e1, e2) if !isvalue(c) =>
-        step(c).map(newC => CondExp(newC, e1, e2))
 
       case CondExp(BoolLit(true), e1, _) =>
         Some(e1) 
@@ -96,9 +94,12 @@ object Interpreter {
       case AppExp(e1, e2) if !isvalue(e2)  =>
         step(e2).map(newE2 => AppExp(e1, newE2))
 
+      /*
       case AppExp(LamExp(id, body), v2) if isvalue(v2) =>
         Some(substitute(body, id, v2))
+        */
 
+      
       case _ => None 
   }
 
@@ -129,8 +130,9 @@ object Interpreter {
    
     case PlusExp(e1, e2) => 
       freeVars(e1) ++ freeVars(e2)
-    case LamExp(id, body) => 
+    /* case LamExp(id, body) => 
       freeVars(body)
+      */
     case AppExp(e1, e2) => 
       freeVars(e1) ++ freeVars(e2)
   }
