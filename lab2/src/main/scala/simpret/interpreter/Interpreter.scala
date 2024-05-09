@@ -4,6 +4,7 @@ import simpret.parser._
 import simpret.errors._
 
 
+
 abstract case class EvaluationException(val message: String, val x: AST,
                                      private val cause: Throwable = None.orNull)
   extends Exception(message, cause)
@@ -48,24 +49,24 @@ object Interpreter {
 
     case PlusExp(e1, e2) =>
       PlusExp(substitute(e1, id, value), substitute(e2, id, value))
-    /*
-    case LamExp(varId, body) if varId == id =>
-      LamExp(varId, body)  // Same id means a new scope, do not substitute in the body
+    
+    case LamExp(varId, ty, body) if varId == id =>
+      LamExp(varId, ty, body)
 
-    case LamExp(varId, body) =>
+    case LamExp(varId, ty, body) =>
       if (freeVars(value).contains(varId)) {
-        // Variable `varId` is in the set of free variables of `value`, need renaming
         val newId = newVarId(varId, freeVars(body) ++ freeVars(value))
         val renamedBody = substitute(body, varId, Variable(newId))
-        LamExp(newId, substitute(renamedBody, id, value))
+        LamExp(newId, ty, substitute(renamedBody, id, value))
       } else {
-        LamExp(varId, substitute(body, id, value))
+        LamExp(varId, ty, substitute(body, id, value))
       }
-      */
 
     case AppExp(e1, e2) =>
       AppExp(substitute(e1, id, value), substitute(e2, id, value))
   }
+
+
   /* Evaluation function for taking one reduction step at a time.
      This function should return the stepped AST if a reduction step can be taken.
      If the provided AST cannot be reduced further, this function should
@@ -80,7 +81,6 @@ object Interpreter {
         println("row79")
         step(e1).map(newE1 => UMinExp(newE1))
 
-
       case LtExp(IntLit(n1), IntLit(n2)) => 
         Some(BoolLit(n1<n2))
 
@@ -90,9 +90,19 @@ object Interpreter {
       case LtExp(e1, e2) if !isvalue(e2) =>
         step(e2).map(newE2 => LtExp(e1, newE2))
 
+      case LetExp(x, v1, t2) if isvalue(v1) =>
+        Some(substitute(t2, x, v1))
+
+      case LetExp(x, e1, t2) if !isvalue(e1) =>
+        step(e1).map(newE1 => LetExp(x, newE1, t2))
+
+      case FixAppExp(LamExp(id, ty, body)) =>
+        Some(substitute(body, id, FixAppExp(LamExp(id, ty, body))))
+
+      case FixAppExp(e1) if !isvalue(e1) =>
+        step(e1).map(newE1 => FixAppExp(newE1))
 
       case CondExp(BoolLit(true), e1, _) =>
-        print("her")
         Some(e1) 
 
       case CondExp(BoolLit(false), _, e2) =>
@@ -112,13 +122,10 @@ object Interpreter {
 
       case AppExp(e1, e2) if !isvalue(e2)  =>
         step(e2).map(newE2 => AppExp(e1, newE2))
-
-      /*
-      case AppExp(LamExp(id, body), v2) if isvalue(v2) =>
+  
+      case AppExp(LamExp(id, ty, body), v2) if isvalue(v2) =>
         Some(substitute(body, id, v2))
-        */
 
-      
       case _ => None 
   }
 
@@ -142,16 +149,22 @@ object Interpreter {
   def freeVars(expr: AST): Set[String] = expr match {
     case Variable(id) => 
       Set(id)
+
     case BoolLit(_) | IntLit(_) => 
       Set.empty
+
     case CondExp(cond, e1, e2) => 
       freeVars(cond) ++ freeVars(e1) ++ freeVars(e2)
    
     case PlusExp(e1, e2) => 
       freeVars(e1) ++ freeVars(e2)
-    /* case LamExp(id, body) => 
+
+    case LamExp(id, ty, body) => 
       freeVars(body)
-      */
+
+    case FixAppExp(e) =>
+    freeVars(e)   
+
     case AppExp(e1, e2) => 
       freeVars(e1) ++ freeVars(e2)
   }
