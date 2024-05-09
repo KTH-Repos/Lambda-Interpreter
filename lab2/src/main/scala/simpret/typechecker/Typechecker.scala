@@ -19,8 +19,73 @@ object Typechecker {
   // The recursive typechecking relation
   // If the provided AST is typeable, this function should return its type
   // If not, this function should throw an appropriate TypecheckerException
-  def check(x: AST, env: Map[String, ASTTY] = Map.empty): ASTTY = {
-    throw new Exception("implement me")
+  def check(x: AST, env: Map[String, ASTTY] = Map.empty): ASTTY = x match {
+    
+    case BoolLit(_) => BoolTy
+    case IntLit(_) => IntTy
+     
+    case PlusExp(e1, e2) => {
+      val e1Type = check(e1, env)
+      val e2Type = check(e2, env)
+
+      if (e1Type != IntTy) 
+        return errExpectedType("int", e1)
+      
+      if(e2Type != IntTy)
+        return errExpectedType("int", e2)
+
+      IntTy
+    }
+    //Type check for conditionals
+    case CondExp(c, e1, e2) => {
+      // Type-check the condition
+      val cType = check(c, env)
+      // Ensure that the condition has a boolean type
+      if (c != BoolTy)
+        return errExpectedType("boolean", c)
+
+      // Type-check the true branch
+      val e1Type = check(e1, env)
+
+      // Type-check the false branch
+      val e2Type = check(e2, env)
+
+      // Ensure that both branches have the same type
+      if (e1Type != e2Type)
+        return errBranch(e1Type, e2Type, x)
+
+      // Return the type of the conditional expression (could be the type of the true branch)
+      e1Type
+    } 
+
+    case UMinExp(e) => {
+      val eType = check(e, env)
+      
+      if (eType != IntTy)
+        return errExpectedType("int", e)
+
+      IntTy
+    }
+     
+    case LtExp(e1, e2) => {
+      val e1Type = check(e1, env)
+      val e2Type = check(e2, env)
+
+      if (e1Type != IntTy) 
+        return errExpectedType("int", e1)
+      
+      if(e2Type != IntTy)
+        return errExpectedType("int", e2)
+
+      BoolTy
+    }
+
+    case Variable(id) =>
+      // Look up the type of the variable in the environment
+      env.getOrElse(id, errVarUnbound(x))
+    
+    case _ => errUnknownAST(x)
+
   }
 
   /* function to apply the interpreter */
