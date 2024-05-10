@@ -73,15 +73,22 @@ object Interpreter {
      return None.*/
   def step(tree: AST): Option[AST] = tree match {
       case UMinExp(IntLit(n))  =>
-        println("row 75")
         Some(IntLit(-n))
 
       case UMinExp(e1) if !isvalue(e1) =>
-        println("row79")
         step(e1).map(newE1 => UMinExp(newE1))
 
+      case CondExp(BoolLit(true), e1, _) =>
+        Some(e1) 
+
+      case CondExp(BoolLit(false), _, e2) =>
+        Some(e2) 
+
+      case CondExp(cond, e1, e2) if !isvalue(cond) =>
+        step(cond).map(newCond => CondExp(newCond, e1, e2))
+
       case LtExp(IntLit(n1), IntLit(n2)) => 
-        Some(BoolLit(n1<n2))
+        Some(BoolLit(n1 < n2))
 
       case LtExp(e1, e2) if !isvalue(e1) =>
         step(e1).map(newE1 => LtExp(newE1, e2)) 
@@ -100,12 +107,6 @@ object Interpreter {
 
       case FixAppExp(e1) if !isvalue(e1) =>
         step(e1).map(newE1 => FixAppExp(newE1))
-
-      case CondExp(BoolLit(true), e1, _) =>
-        Some(e1) 
-
-      case CondExp(BoolLit(false), _, e2) =>
-        Some(e2) 
       
       case PlusExp(IntLit(n1), IntLit(n2)) => 
         Some(IntLit(n1 + n2))
