@@ -72,7 +72,6 @@ object Interpreter {
      If the provided AST cannot be reduced further, this function should
      return None.*/
   def step(tree: AST): Option[AST] = tree match {
-
       case UMinExp(IntLit(n))  =>
         println("row 75")
         Some(IntLit(-n))

@@ -36,28 +36,21 @@ object Typechecker {
 
       IntTy
     }
-    //Type check for conditionals
     case CondExp(c, e1, e2) => {
-      // Type-check the condition
       val cType = check(c, env)
-      // Ensure that the condition has a boolean type
-      if (c != BoolTy)
+
+      if (cType != BoolTy)
         return errExpectedType("boolean", c)
 
-      // Type-check the true branch
       val e1Type = check(e1, env)
 
-      // Type-check the false branch
       val e2Type = check(e2, env)
 
-      // Ensure that both branches have the same type
       if (e1Type != e2Type)
         return errBranch(e1Type, e2Type, x)
 
-      // Return the type of the conditional expression (could be the type of the true branch)
       e1Type
     } 
-
     case UMinExp(e) => {
       val eType = check(e, env)
       
@@ -80,12 +73,49 @@ object Typechecker {
       BoolTy
     }
 
+    case LetExp(id, e1, e2) => {
+      val t1 = check(e1, env)
+      val extendedEnv = env + (id -> t1)
+      check(e2, extendedEnv)
+    }
+
+
+    case AppExp(e1, e2) => {
+      val t1 = check(e1, env)
+      val t2 = check(e2, env)
+      t1 match {
+        case   ArrowTy(fromType, toType) if fromType == t2 =>
+          toType
+        case ArrowTy(fromType, _) =>
+          
+          return errExpectedType("int", e2)
+        case _ =>
+          //måste ändras 
+          return errExpectedType("int", e2)
+      }
+    }
+
+    case LamExp(param, paramType, body) => {
+      val extendedEnv = env + (param -> paramType)
+      val bodyType = check(body, extendedEnv)
+      ArrowTy(paramType, bodyType)
+    }
+
+    case FixAppExp(e) => {
+      check(e, env) match {
+      case ArrowTy(t, returnType) if t == returnType =>
+        returnType
+      case _ =>
+        //måste ändras 
+        return errUnknownAST(e)
+      }
+    }  
+
     case Variable(id) =>
       // Look up the type of the variable in the environment
       env.getOrElse(id, errVarUnbound(x))
-    
-    case _ => errUnknownAST(x)
 
+    case _ => errUnknownAST(x)
   }
 
   /* function to apply the interpreter */
