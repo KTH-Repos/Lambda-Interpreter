@@ -36,6 +36,7 @@ object Typechecker {
 
       IntTy
     }
+
     case CondExp(c, e1, e2) => {
       val cType = check(c, env)
 
@@ -51,6 +52,7 @@ object Typechecker {
 
       e1Type
     } 
+
     case UMinExp(e) => {
       val eType = check(e, env)
       
@@ -78,7 +80,6 @@ object Typechecker {
       val extendedEnv = env + (id -> t1)
       check(e2, extendedEnv)
     }
-
 
     case AppExp(e1, e2) => {
       val t1 = check(e1, env)
@@ -115,6 +116,18 @@ object Typechecker {
       // Look up the type of the variable in the environment
       env.getOrElse(id, errVarUnbound(x))
 
+    case TupleExp(el) => {
+      val elementTypes = el.flatMap(e => {
+        val eType = check(e, env)
+        if(eType.isInstanceOf[TypecheckerException]) {
+          errUnknownAST(e)
+        } else {
+          None
+        }
+      })
+      TupleTy(elementTypes)
+    }
+    
     case _ => errUnknownAST(x)
   }
 

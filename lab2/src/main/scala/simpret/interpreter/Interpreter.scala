@@ -126,6 +126,33 @@ object Interpreter {
       case AppExp(LamExp(id, ty, body), v2) if isvalue(v2) =>
         Some(substitute(body, id, v2))
 
+      case TupleExp(el) =>
+        val newEl = el.zipWithIndex.flatMap {
+          case (elem, index) =>
+            if (!isvalue(elem)) {
+              step(elem).map(newElem => (index, newElem))
+            } else {
+              List((index, elem))
+            }
+        }
+
+        val updatedEl = newEl.sortBy(_._1).map(_._2)
+        if (updatedEl != el) {
+          Some(TupleExp(updatedEl))
+        } else {
+          None
+        }
+
+      case ProjTupleExp(TupleExp(elements), i) =>
+        if (i-1 >= 0 && i-1 < elements.length) {
+          Some(elements(i-1))
+        } else {
+          None // Index out of bounds. Evaluator shall give Evaluation stuck!
+        }
+
+      case ProjTupleExp(e, i) if !isvalue(e) =>
+        step(e).map(newE => ProjTupleExp(newE, i))
+
       case _ => None 
   }
 
