@@ -119,15 +119,116 @@ object Typechecker {
     case TupleExp(el) => {
       val elementTypes = el.flatMap(e => {
         val eType = check(e, env)
-        if(eType.isInstanceOf[TypecheckerException]) {
-          errUnknownAST(e)
-        } else {
-          None
+        eType match {
+          case ex: TypecheckerException =>
+            errUnknownAST(e)
+          case ty: ASTTY =>
+            List(ty)
         }
       })
       TupleTy(elementTypes)
     }
-    
+
+    case ProjTupleExp(e, i) => {
+      e match {
+        case TupleExp(el) =>
+          val elType = check(TupleExp(el), env) //get types of all elements
+          elType match
+            case TupleTy(elTypeList) => {
+              if(i < 1)
+                return errProjTooSmall(TupleExp(el))
+              if(i > el.length)
+                return errProjTooBig(el.length, TupleExp(el))
+              val projElemType = check(el(i-1), env)
+              if(projElemType != elTypeList(i-1))
+                return errExpectedType(s"$projElemType", el(i-1))
+              projElemType
+            }
+            case _ => errUnknownAST(e)
+        case ProjTupleExp(e, i) => check(ProjTupleExp(e, i), env)
+        case _ => errUnknownAST(e)
+      }
+    }
+
+    case RecordExp(map) => {
+      val typedMap = map.flatMap {
+        case (label, expr) =>
+          val exprType = check(expr, env)
+          exprType match {
+            case ex: TypecheckerException => 
+              errUnknownAST(expr)
+            case ty: ASTTY => 
+              Some((label, ty))
+          }
+      }
+      RecordTy(typedMap)
+    }
+
+    case ProjRecordExp(e, l) => {
+      val eType = check(e, env)
+      eType match {
+        case RecordTy(typedMap) =>
+          typedMap.get(l) match {
+            case Some(projType) => projType
+            case None => errProjNotField(l, e)
+          }
+        case _ =>
+          val nestedType = check(e, env)
+          nestedType match {
+            case RecordTy(typedMap) =>
+              typedMap.get(l) match {
+                case Some(projType) => projType
+                case None => errProjNotField(l, e)
+              }
+            case _ => errExpectedType("record type", e)
+          }
+      }
+    }
+
+    case NilExp(ty) =>
+      ty match {
+        case listtype: ASTTY => ListTy(listtype)
+        case null => errExpectedType("list type", x)
+      }
+
+    case ConsExp(e1, e2) => {
+      val t1 = check(e1, env)
+      val t2 = check(e2, env)
+
+      (t1, t2) match {
+        case (elemType, ListTy(listElemType)) if elemType == listElemType =>
+          ListTy(elemType)
+        case (_, ListTy(listElemType)) =>
+          errExpectedType(s"$listElemType", e1)
+        case (elemType, _) =>
+          errExpectedType(s"list of $elemType", e2)
+      }
+    }
+
+    case IsNilExp(e) => {
+      val t1 = check(e, env)
+      t1 match {
+        case ListTy(_) => BoolTy
+        case _ => errExpectedType("list type", e)
+      }
+    }
+
+    case HeadExp(e) => {
+      val t1 = check(e, env)
+      t1 match {
+        case ListTy(elemType) => elemType
+        case _ => errExpectedType("list type", e)
+      }
+    }
+
+    case TailExp(e) => {
+      val t1 = check(e, env)
+      t1 match {
+        case ListTy(elemType) => ListTy(elemType)
+        case _ => errExpectedType("list type", e)
+      }
+    }
+
     case _ => errUnknownAST(x)
   }
 

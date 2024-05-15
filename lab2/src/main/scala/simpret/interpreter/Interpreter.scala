@@ -82,7 +82,7 @@ object Interpreter {
         Some(e1) 
 
       case CondExp(BoolLit(false), _, e2) =>
-        Some(e2) 
+        Some(e2)
 
       case CondExp(cond, e1, e2) if !isvalue(cond) =>
         step(cond).map(newCond => CondExp(newCond, e1, e2))
@@ -127,20 +127,12 @@ object Interpreter {
         Some(substitute(body, id, v2))
 
       case TupleExp(el) =>
-        val newEl = el.zipWithIndex.flatMap {
-          case (elem, index) =>
-            if (!isvalue(elem)) {
-              step(elem).map(newElem => (index, newElem))
-            } else {
-              List((index, elem))
-            }
-        }
-
-        val updatedEl = newEl.sortBy(_._1).map(_._2)
-        if (updatedEl != el) {
-          Some(TupleExp(updatedEl))
-        } else {
-          None
+        val (values, nonValues) = el.partition(isvalue)
+        nonValues.headOption match {
+          case Some(nonValue) =>
+            step(nonValue).map(newNonValue => TupleExp(values ++ List(newNonValue) ++ nonValues.tail))
+          case None =>
+            None
         }
 
       case ProjTupleExp(TupleExp(elements), i) =>
@@ -152,6 +144,73 @@ object Interpreter {
 
       case ProjTupleExp(e, i) if !isvalue(e) =>
         step(e).map(newE => ProjTupleExp(newE, i))
+
+      case RecordExp(map) =>
+        val newMap = map.flatMap {
+          case (label, expr) =>
+            if (!isvalue(expr)) {
+              step(expr).map(newExpr => (label, newExpr))
+            } else {
+              Some((label, expr))
+            }
+        }
+
+        if (newMap != map) {
+          Some(RecordExp(newMap))
+        } else {
+          None
+        }
+      
+      case ProjRecordExp(RecordExp(map), l) =>
+        map.get(l) match {
+          case Some(expr) => Some(expr)
+          case None => None
+        }
+
+      case ProjRecordExp(e, l) if !isvalue(e) =>
+        step(e).map(newE => ProjRecordExp(newE, l))
+
+      case ConsExp(IntLit(n), TupleExp(lst)) =>
+        Some(TupleExp(IntLit(n) :: lst))
+
+      case ConsExp(eh, TupleExp(lst)) if isvalue(eh) =>
+        Some(TupleExp(eh :: lst))
+
+      case ConsExp(TupleExp(lst1), TupleExp(lst2)) =>
+        Some(TupleExp(lst1 ++ lst2))
+
+      case ConsExp(eh, et) if !isvalue(eh) =>
+        step(eh).map(newEh => ConsExp(newEh, et))
+
+      case ConsExp(eh, et) if !isvalue(et) =>
+        step(et).map(newEt => ConsExp(eh, newEt))
+
+      case IsNilExp(NilExp(_)) =>
+        Some(BoolLit(true))
+
+      case IsNilExp(ConsExp(eh, et)) if isvalue(ConsExp(eh, et)) =>
+        Some(BoolLit(false))
+
+      case IsNilExp(e) if !isvalue(e) =>
+        step(e).map(newE => IsNilExp(newE))
+
+      case HeadExp(NilExp(ty)) =>
+        Some(NilExp(ty))
+      
+      case HeadExp(ConsExp(eh, et)) if isvalue(ConsExp(eh, et)) =>
+        Some(eh)
+
+      case HeadExp(e) if !isvalue(e) =>
+        step(e).map(newE => HeadExp(newE))
+
+      case TailExp(NilExp(ty)) =>
+        Some(NilExp(ty))
+
+      case TailExp(ConsExp(eh, et)) if isvalue(ConsExp(eh, et)) =>
+        Some(et)
+      
+      case TailExp(e) if !isvalue(e) =>
+        step(e).map(newE => TailExp(newE))
 
       case _ => None 
   }

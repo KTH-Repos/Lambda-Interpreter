@@ -57,7 +57,7 @@ object Main {
       tokens <- Lexer(input)
       ast <- Parser(tokens)
       _ <- ASTPrinter(ast)
-      //_ <- Typechecker(ast)
+      _ <- Typechecker(ast)
       res <- Interpreter(ast)
     } yield res
   }
