@@ -62,14 +62,13 @@ object Interpreter {
         LamExp(varId, ty, substitute(body, id, value))
       }
 
-      
-    case LetExp(x, e1, e2) =>
-      /* print(s"x is $x\n")
-      print(s"e1 is $e1\n")
-      print(s"e2 is $e2\n") */
-      LetExp(x, substitute(e1, id, value), substitute(e2, id, value))
+    case LetExp(varId, e1, e2) =>
+      if(id  == varId || freeVars(value).contains(varId)) {
+        LetExp(varId, substitute(e1, id, value), e2)
+      } else {
+        LetExp(varId, substitute(e1, id, value), substitute(e2, id, value))
+      }
     
-
     case AppExp(e1, e2) =>
       AppExp(substitute(e1, id, value), substitute(e2, id, value))
 
@@ -140,27 +139,9 @@ object Interpreter {
       case LtExp(e1, e2) if !isvalue(e2) =>
         step(e2).map(newE2 => LtExp(e1, newE2))
 
-      /* case LetExp(x, LamExp(id, ty, body), t2) =>
-        // This case handles the situation where the bound expression is a lambda expression.
-        // We need to ensure that the lambda expression does not capture itself unless intended.
-        val newBody = substitute(body, id, LamExp(id, ty, body))
-        Some(LetExp(x, LamExp(id, ty, newBody), substitute(t2, x, LamExp(id, ty, newBody))))
- */
-      case LetExp(x, v1, t2) if isvalue(v1) =>
+      case LetExp(x, e1, t2) if isvalue(e1) =>
         // This case handles when `v1` is a value. We substitute `x` with `v1` in `t2`.
-        Some(substitute(t2, x, v1))
-
-      /* case LetExp(x, TupleExp(elements), t2) =>
-        // This case handles when the bound expression is a tuple.
-        // We evaluate each element of the tuple that is not already a value.
-        val evaluatedElements = elements.map {
-          case e if isvalue(e) => e
-          case e => step(e) match {
-            case Some(evaluated) => evaluated
-            case None => e  // If `step` returns None, use the original expression.
-          }
-        }
-        Some(LetExp(x, TupleExp(evaluatedElements), t2)) */
+        Some(substitute(t2, x, e1))
 
       case LetExp(x, e1, t2) if !isvalue(e1) =>
         // This case handles when `e1` is not a value and needs to be evaluated.
@@ -191,17 +172,16 @@ object Interpreter {
         Some(substitute(body, id, v2))
 
       case TupleExp(elements) =>
-        val (values, nonValues) = elements.partition(isvalue)
-        nonValues.headOption match {
-          case Some(nonValue) =>
-            step(nonValue) match {
-              case Some(evaluatedNonValue) =>
-                Some(TupleExp(values ++ List(evaluatedNonValue) ++ nonValues.tail))
-              case None =>
-                None
-            }
-          case None =>
-            None
+        val evaluatedElements = elements.takeWhile(isvalue(_)) 
+        if (evaluatedElements.size < elements.size) {
+          step(elements(evaluatedElements.size)) match {
+            case Some(a) =>
+              Some(TupleExp(elements.patch(evaluatedElements.size, List(a), 1)))
+            case None =>
+              None
+          }
+        } else {
+          None
         }
 
       case ProjTupleExp(TupleExp(elements), i) =>
@@ -329,6 +309,12 @@ object Interpreter {
 
     case AppExp(e1, e2) => 
       freeVars(e1) ++ freeVars(e2)
+
+    case TupleExp(elements) =>
+      elements.flatMap(freeVars).toSet
+
+    case RecordExp(map) =>
+      map.values.flatMap(freeVars).toSet
 
     case LtExp(e1, e2) =>
       freeVars(e1) ++ freeVars(e2)
