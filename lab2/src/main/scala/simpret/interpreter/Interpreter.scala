@@ -62,8 +62,52 @@ object Interpreter {
         LamExp(varId, ty, substitute(body, id, value))
       }
 
+      
+    case LetExp(x, e1, e2) =>
+      /* print(s"x is $x\n")
+      print(s"e1 is $e1\n")
+      print(s"e2 is $e2\n") */
+      LetExp(x, substitute(e1, id, value), substitute(e2, id, value))
+    
+
     case AppExp(e1, e2) =>
       AppExp(substitute(e1, id, value), substitute(e2, id, value))
+
+    case LtExp(e1, e2) =>
+      LtExp(substitute(e1, id, value), substitute(e2, id, value))
+
+    case UMinExp(e) =>
+      UMinExp(substitute(e, id, value))
+
+    case FixAppExp(e) =>
+      FixAppExp(substitute(e, id, value))
+
+    case ConsExp(eh, et) =>
+      ConsExp(substitute(eh, id, value), substitute(et, id, value))
+
+    case NilExp(_) =>
+      expr
+    
+    case TupleExp(elements) =>
+      TupleExp(elements.map(e => substitute(e, id, value)))
+
+    case RecordExp(map) =>
+      RecordExp(map.map { case (label, expr) => (label, substitute(expr, id, value)) })
+
+    case TailExp(e) =>
+      TailExp(substitute(e, id, value))
+
+    case HeadExp(e) =>
+      HeadExp(substitute(e, id, value))
+
+    case IsNilExp(e) =>
+      IsNilExp(substitute(e, id, value))
+
+    case ProjTupleExp(e, i) =>
+      ProjTupleExp(substitute(e, id, value), i)
+
+    case ProjRecordExp(e, l) =>
+      ProjRecordExp(substitute(e, id, value), l)
   }
 
 
@@ -96,10 +140,30 @@ object Interpreter {
       case LtExp(e1, e2) if !isvalue(e2) =>
         step(e2).map(newE2 => LtExp(e1, newE2))
 
+      /* case LetExp(x, LamExp(id, ty, body), t2) =>
+        // This case handles the situation where the bound expression is a lambda expression.
+        // We need to ensure that the lambda expression does not capture itself unless intended.
+        val newBody = substitute(body, id, LamExp(id, ty, body))
+        Some(LetExp(x, LamExp(id, ty, newBody), substitute(t2, x, LamExp(id, ty, newBody))))
+ */
       case LetExp(x, v1, t2) if isvalue(v1) =>
+        // This case handles when `v1` is a value. We substitute `x` with `v1` in `t2`.
         Some(substitute(t2, x, v1))
 
+      /* case LetExp(x, TupleExp(elements), t2) =>
+        // This case handles when the bound expression is a tuple.
+        // We evaluate each element of the tuple that is not already a value.
+        val evaluatedElements = elements.map {
+          case e if isvalue(e) => e
+          case e => step(e) match {
+            case Some(evaluated) => evaluated
+            case None => e  // If `step` returns None, use the original expression.
+          }
+        }
+        Some(LetExp(x, TupleExp(evaluatedElements), t2)) */
+
       case LetExp(x, e1, t2) if !isvalue(e1) =>
+        // This case handles when `e1` is not a value and needs to be evaluated.
         step(e1).map(newE1 => LetExp(x, newE1, t2))
 
       case FixAppExp(LamExp(id, ty, body)) =>
@@ -126,18 +190,30 @@ object Interpreter {
       case AppExp(LamExp(id, ty, body), v2) if isvalue(v2) =>
         Some(substitute(body, id, v2))
 
-      case TupleExp(el) =>
-        val (values, nonValues) = el.partition(isvalue)
+      case TupleExp(elements) =>
+        val (values, nonValues) = elements.partition(isvalue)
         nonValues.headOption match {
           case Some(nonValue) =>
-            step(nonValue).map(newNonValue => TupleExp(values ++ List(newNonValue) ++ nonValues.tail))
+            step(nonValue) match {
+              case Some(evaluatedNonValue) =>
+                Some(TupleExp(values ++ List(evaluatedNonValue) ++ nonValues.tail))
+              case None =>
+                None
+            }
           case None =>
             None
         }
 
       case ProjTupleExp(TupleExp(elements), i) =>
-        if (i-1 >= 0 && i-1 < elements.length) {
-          Some(elements(i-1))
+        val evaluatedElements = elements.map {
+          case e if isvalue(e) => e
+          case e => step(e) match {
+            case Some(evaluated) => evaluated
+            case None => e // If step returns None, use the original expression
+          }
+        }
+        if (i >= 1 && i <= evaluatedElements.length) {
+          Some(evaluatedElements(i - 1))
         } else {
           None // Index out of bounds. Evaluator shall give Evaluation stuck!
         }
@@ -253,6 +329,27 @@ object Interpreter {
 
     case AppExp(e1, e2) => 
       freeVars(e1) ++ freeVars(e2)
+
+    case LtExp(e1, e2) =>
+      freeVars(e1) ++ freeVars(e2)
+
+    case UMinExp(e) =>
+      freeVars(e)
+
+    case ConsExp(eh, et) =>
+      freeVars(eh) ++ freeVars(et)
+
+    case NilExp(_) =>
+      Set.empty
+
+    case IsNilExp(e) =>
+      freeVars(e)
+
+    case HeadExp(e) =>
+      freeVars(e)
+
+    case TailExp(e) =>
+      freeVars(e)
   }
 
   def newVarId(oldId: String, value: Set[String]): String = {

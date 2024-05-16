@@ -130,23 +130,16 @@ object Typechecker {
     }
 
     case ProjTupleExp(e, i) => {
-      e match {
-        case TupleExp(el) =>
-          val elType = check(TupleExp(el), env) //get types of all elements
-          elType match
-            case TupleTy(elTypeList) => {
-              if(i < 1)
-                return errProjTooSmall(TupleExp(el))
-              if(i > el.length)
-                return errProjTooBig(el.length, TupleExp(el))
-              val projElemType = check(el(i-1), env)
-              if(projElemType != elTypeList(i-1))
-                return errExpectedType(s"$projElemType", el(i-1))
-              projElemType
-            }
-            case _ => errUnknownAST(e)
-        case ProjTupleExp(e, i) => check(ProjTupleExp(e, i), env)
-        case _ => errUnknownAST(e)
+      val eType = check(e, env)
+      eType match {
+        case TupleTy(elTypeList) => {
+          if (i < 1)
+            return errProjTooSmall(e)
+          if (i > elTypeList.length)
+            return errProjTooBig(elTypeList.length, e)
+          elTypeList(i - 1)
+        }
+        case _ => errExpectedType("tuple type", e)
       }
     }
 
