@@ -34,22 +34,21 @@ object Interpreter {
   /* function for carrying out a substitution */
   //def subst (x: String, s: AST, t: AST):AST = throw new Exception("implement me")
   def substitute(expr: AST, id: String, value: AST): AST = expr match {
-    case Variable(varId) if varId == id =>    //repalace value instead of variable
-      value  
+    case Variable(varId) if varId == id =>
+      value
 
-    case Variable(_) =>     //no substitution of value instead of variable
-      expr  
+    case Variable(_) =>
+      expr
 
-    case BoolLit(_) | IntLit(_) =>       //no substitution of value instead of variable
-      expr 
+    case BoolLit(_) | IntLit(_) =>
+      expr
 
     case CondExp(cond, e1, e2) =>
       CondExp(substitute(cond, id, value), substitute(e1, id, value), substitute(e2, id, value))
 
-
     case PlusExp(e1, e2) =>
       PlusExp(substitute(e1, id, value), substitute(e2, id, value))
-    
+
     case LamExp(varId, ty, body) if varId == id =>
       LamExp(varId, ty, body)
 
@@ -63,12 +62,12 @@ object Interpreter {
       }
 
     case LetExp(varId, e1, e2) =>
-      if(id  == varId || freeVars(value).contains(varId)) {
+      if (id == varId || freeVars(value).contains(varId)) {
         LetExp(varId, substitute(e1, id, value), e2)
       } else {
         LetExp(varId, substitute(e1, id, value), substitute(e2, id, value))
       }
-    
+
     case AppExp(e1, e2) =>
       AppExp(substitute(e1, id, value), substitute(e2, id, value))
 
@@ -78,15 +77,19 @@ object Interpreter {
     case UMinExp(e) =>
       UMinExp(substitute(e, id, value))
 
-    case FixAppExp(e) =>
-      FixAppExp(substitute(e, id, value))
+    case FixAppExp(LamExp(varId, ty, body)) =>
+      // Substitute the body of the lambda with the FixAppExp itself.
+      FixAppExp(LamExp(varId, ty, substitute(body, id, value)))
+
+    case FixAppExp(f) =>
+      FixAppExp(substitute(f, id, value))
 
     case ConsExp(eh, et) =>
       ConsExp(substitute(eh, id, value), substitute(et, id, value))
 
     case NilExp(_) =>
       expr
-    
+
     case TupleExp(elements) =>
       TupleExp(elements.map(e => substitute(e, id, value)))
 
@@ -108,7 +111,6 @@ object Interpreter {
     case ProjRecordExp(e, l) =>
       ProjRecordExp(substitute(e, id, value), l)
   }
-
 
   /* Evaluation function for taking one reduction step at a time.
      This function should return the stepped AST if a reduction step can be taken.
@@ -147,12 +149,18 @@ object Interpreter {
         // This case handles when `e1` is not a value and needs to be evaluated.
         step(e1).map(newE1 => LetExp(x, newE1, t2))
 
-      case FixAppExp(LamExp(id, ty, body)) =>
-        Some(substitute(body, id, FixAppExp(LamExp(id, ty, body))))
+      case FixAppExp(LamExp(funcId, ArrowTy(argIn, argOut), iteratorFunc @ LamExp(iterId, iterTy, body))) =>
+        // Substitute the recursive function identifier with the fixed-point expression in the body of the iterator function
+        val substitutedBody = substitute(body, funcId, FixAppExp(LamExp(funcId, ArrowTy(argIn, argOut), iteratorFunc)))
+        // Create a new lambda expression with the substituted body
+        val newIteratorFunc = LamExp(iterId, iterTy, substitutedBody)
+        // Return the new iterator function
+        Some(newIteratorFunc)
 
-      case FixAppExp(e1) if !isvalue(e1) =>
-        step(e1).map(newE1 => FixAppExp(newE1))
-      
+      case FixAppExp(e) if !isvalue(e) =>
+        // If the expression inside FixAppExp is not a value, continue evaluation
+        step(e).map(FixAppExp(_))
+
       case PlusExp(IntLit(n1), IntLit(n2)) => 
         Some(IntLit(n1 + n2))
 
@@ -316,6 +324,12 @@ object Interpreter {
     case RecordExp(map) =>
       map.values.flatMap(freeVars).toSet
 
+    case ProjTupleExp(e, _) =>
+      freeVars(e)
+
+    case ProjRecordExp(e, _) => 
+    freeVars(e)
+
     case LtExp(e1, e2) =>
       freeVars(e1) ++ freeVars(e2)
 
@@ -336,6 +350,9 @@ object Interpreter {
 
     case TailExp(e) =>
       freeVars(e)
+
+    case LetExp(x, e1, e2) => 
+      freeVars(e1) ++ (freeVars(e2) - x)
   }
 
   def newVarId(oldId: String, value: Set[String]): String = {
