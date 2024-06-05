@@ -1,0 +1,24 @@
+letrec filter:(int -> bool) -> [int] -> [int] =
+    \p:(int -> bool).
+    \lst:[int].
+        if isnil lst then
+            [int]
+        else
+            let h = hd lst in
+            let t = tl lst in
+            if p h then
+                h :: (filter p t)
+            else
+                filter p t
+in
+
+let isLessThanTen =
+    \x:int.
+        x < 10
+in
+
+let lst = 1 :: 7 :: 9 :: 10 :: 20 :: 35 :: 50 :: [int] in
+filter isLessThanTen lst
+
+// Result [1, 7, 9 | INT ]
+

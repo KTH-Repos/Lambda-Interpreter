@@ -1,0 +1,21 @@
+// Compares two tuples based on the first element and returns 
+// the tuple with the largest first element. 
+let maxTuple =
+    \a:(int, int).
+    \b:(int, int).
+        if a.1 < b.1 then b else a
+in
+
+// recursive function to find the tuple with the largest first element in a list of tuples
+letrec findMaxTuple:((int, int) -> (int, int) -> (int, int)) -> (int, int) -> [(int, int)] -> (int, int) =
+    \f:((int, int) -> (int, int) -> (int, int)).
+    \acc:(int, int).
+    \lst:[(int, int)].
+        if isnil lst then
+            acc
+        else
+            f (hd lst) (findMaxTuple f acc (tl lst))
+in
+
+let lst = (1, 2) :: (3, 1) :: (2, 3) :: (4, 0) :: [(int, int)] in
+findMaxTuple maxTuple (0, 0) lst

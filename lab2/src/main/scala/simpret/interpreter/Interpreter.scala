@@ -111,7 +111,6 @@ object Interpreter {
     case ProjRecordExp(e, l) =>
       ProjRecordExp(substitute(e, id, value), l)
   }
-
   /* Evaluation function for taking one reduction step at a time.
      This function should return the stepped AST if a reduction step can be taken.
      If the provided AST cannot be reduced further, this function should
@@ -305,15 +304,15 @@ object Interpreter {
 
     case CondExp(cond, e1, e2) => 
       freeVars(cond) ++ freeVars(e1) ++ freeVars(e2)
-   
+  
     case PlusExp(e1, e2) => 
       freeVars(e1) ++ freeVars(e2)
 
     case LamExp(id, ty, body) => 
-      freeVars(body)
+      freeVars(body) - id
 
     case FixAppExp(e) =>
-    freeVars(e)   
+      freeVars(e)   
 
     case AppExp(e1, e2) => 
       freeVars(e1) ++ freeVars(e2)

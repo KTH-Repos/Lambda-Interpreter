@@ -1,0 +1,24 @@
+// Recursive function to sum the "x" values in a list of records
+letrec sumXValues:({x: int, y: int} -> int -> int) -> int -> [{x: int, y: int}] -> int =
+    \sum:({x: int, y: int} -> int -> int).
+    \acc:int.
+    \lst:[{x: int, y: int}].
+        if isnil lst then
+            acc
+        else
+            sumXValues sum (sum (hd lst) acc) (tl lst)
+in
+
+// Function to add the "x" value of a record to an accumulator
+let addXValue =
+    \r:{x: int, y: int}.
+    \acc:int.
+        acc + r.x
+in
+
+// Sample list of records
+let lst = {x = 2, y = 0} :: {x = 2, y = 0} :: {x = 2, y = 0} :: {x = 2, y = 0} :: [{x: int, y: int}] in
+
+// Sum the "x" values
+// Result is 8 for lst
+sumXValues addXValue 0 lst
